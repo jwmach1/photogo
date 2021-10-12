@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func Extract(client *http.Client, outputDir string) {
@@ -30,11 +31,14 @@ func Extract(client *http.Client, outputDir string) {
 }
 
 func saveMedia(client *http.Client, outputDir string, mediaItem *MediaItem) error {
-	imgResponse, err := client.Get(mediaItem.BaseUrl)
+	imgResponse, err := client.Get(buildURL(mediaItem.MimeType, mediaItem.BaseUrl))
 	if err != nil {
 		return fmt.Errorf("failed to get %s: %v", mediaItem.Filename, err)
 	}
 	defer imgResponse.Body.Close()
+	// for k, v := range imgResponse.Header {
+	// 	fmt.Printf("%s:\t%s=%s\n", mediaItem.Filename, k, v)
+	// }
 
 	name := fmt.Sprintf("%s/%s", outputDir, mediaItem.Filename)
 	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, 0666)
@@ -50,10 +54,20 @@ func saveMedia(client *http.Client, outputDir string, mediaItem *MediaItem) erro
 	if err != nil {
 		return fmt.Errorf("failed to write %s: %v", mediaItem.Filename, err)
 	}
-	fmt.Printf("wrote %s of %d", name, count)
+	fmt.Printf("wrote %s (%s) of %d\n", name, mediaItem.MimeType, count)
 	if f.Close() != nil {
 		return fmt.Errorf("failed to close file %s: %s", name, err)
 	}
 	os.Chtimes(name, mediaItem.Metadata.CreationTime, mediaItem.Metadata.CreationTime)
 	return nil
+}
+
+// buildURL based on details from https://developers.google.com/photos/library/guides/access-media-items#base-urls
+func buildURL(mimeType, baseURL string) string {
+	if strings.Contains(mimeType, "video") {
+		fmt.Println(baseURL)
+		return fmt.Sprintf("%s=dv", baseURL)
+	}
+
+	return fmt.Sprintf("%s=d", baseURL)
 }
