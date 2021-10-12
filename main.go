@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,6 +12,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"velocitizer.com/photogo/photos"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -69,6 +71,8 @@ func saveToken(path string, token *oauth2.Token) {
 }
 
 func main() {
+	outputDir := flag.String("output", "data", "directory to write output")
+	flag.Parse()
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
@@ -81,56 +85,5 @@ func main() {
 	}
 	client := getClient(config)
 
-	response, err := client.Get("https://photoslibrary.googleapis.com/v1/mediaItems")
-	if err != nil {
-		log.Fatalf("failed to get mediaitems: %s", err)
-	}
-	defer response.Body.Close()
-	if b, err := ioutil.ReadAll(response.Body); err != nil {
-		log.Fatalf("failed to read body of mediaitems: %s", err)
-	} else {
-		fmt.Printf("response: %s", b)
-	}
-
-	// srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
-	// if err != nil {
-	// 	log.Fatalf("Unable to retrieve Drive client: %v", err)
-	// }
-
-	// r, err := srv.Files.List().PageSize(10).
-	// 	Fields("nextPageToken, files(id, name)").Do()
-	// if err != nil {
-	// 	log.Fatalf("Unable to retrieve files: %v", err)
-	// }
-	// fmt.Println("Files:")
-	// if len(r.Files) == 0 {
-	// 	fmt.Println("No files found.")
-	// } else {
-	// 	for _, i := range r.Files {
-	// 		fmt.Printf("%s (%s)\n", i.Name, i.Id)
-	// 	}
-	// }
+	photos.Extract(client, *outputDir)
 }
-
-// func main() {
-// clientID := flag.String("client_id", "", "Google project oauth client id")
-// clientSecret := flag.String("client_secret", "", "Google project oauth client secret")
-// flag.Parse()
-// f, err := os.OpenFile("sample.txt", os.O_CREATE, 0666)
-// if err != nil {
-// 	log.Fatal(err)
-// }
-// f.Write([]byte("sample text"))
-// if f.Close() != nil {
-// 	log.Fatalf("failed to close file: %s", err)
-// }
-
-// os.Chtimes(f.Name(), time.Now().Add(-2*time.Hour), time.Now().Add(-2*time.Hour))
-// }
-
-func localOauthServer() {
-	http.HandleFunc("/callback", handleCallback)
-	fmt.Println(http.ListenAndServe(":8080", nil))
-}
-
-func handleCallback(w http.ResponseWriter, r *http.Request) {}
