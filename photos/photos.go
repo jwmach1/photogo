@@ -8,9 +8,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
-func Extract(client *http.Client, outputDir string) {
+type Getter interface {
+	Get(url string) (resp *http.Response, err error)
+}
+
+func Extract(client Getter, outputDir string) {
 	response, err := client.Get("https://photoslibrary.googleapis.com/v1/mediaItems")
 	if err != nil {
 		log.Fatalf("failed to get mediaitems: %s", err)
@@ -30,21 +35,22 @@ func Extract(client *http.Client, outputDir string) {
 	}
 }
 
-func saveMedia(client *http.Client, outputDir string, mediaItem *MediaItem) error {
+func saveMedia(client Getter, outputDir string, mediaItem *MediaItem) error {
+	f, closer, err := openFile(outputDir, *mediaItem)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil
+		} else {
+			return err
+		}
+	}
+	defer closer()
+
 	imgResponse, err := client.Get(buildURL(mediaItem.MimeType, mediaItem.BaseUrl))
 	if err != nil {
 		return fmt.Errorf("failed to get %s: %v", mediaItem.Filename, err)
 	}
 	defer imgResponse.Body.Close()
-	// for k, v := range imgResponse.Header {
-	// 	fmt.Printf("%s:\t%s=%s\n", mediaItem.Filename, k, v)
-	// }
-
-	name := fmt.Sprintf("%s/%s", outputDir, mediaItem.Filename)
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		return err
-	}
 
 	imgBytes, err := ioutil.ReadAll(imgResponse.Body)
 	if err != nil {
@@ -54,18 +60,50 @@ func saveMedia(client *http.Client, outputDir string, mediaItem *MediaItem) erro
 	if err != nil {
 		return fmt.Errorf("failed to write %s: %v", mediaItem.Filename, err)
 	}
-	fmt.Printf("wrote %s (%s) of %d\n", name, mediaItem.MimeType, count)
-	if f.Close() != nil {
-		return fmt.Errorf("failed to close file %s: %s", name, err)
-	}
-	os.Chtimes(name, mediaItem.Metadata.CreationTime, mediaItem.Metadata.CreationTime)
+	fmt.Printf("wrote %s (%s) of %d\n", mediaItem.Filename, mediaItem.MimeType, count)
+
 	return nil
+}
+
+func openFile(outputDir string, mediaItem MediaItem) (*os.File, func(), error) {
+	filePath := buildPath(outputDir, mediaItem.Metadata.CreationTime)
+	err := os.MkdirAll(filePath, os.ModePerm)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create directory structure for media: %+v", err)
+	}
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename), os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
+	if err != nil {
+		if os.IsExist(err) {
+			info, err := os.Stat(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename))
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to determine if existing file was empty (%s): %+v", mediaItem.Filename, err)
+			}
+			if info.Size() > 0 {
+				//if file as contents, assume it's complete. future support could confirm mimetype == mediaItem
+				return nil, nil, err
+			}
+			f, _ = os.OpenFile(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename), os.O_CREATE|os.O_WRONLY, 0666)
+		} else {
+			return nil, nil, fmt.Errorf("failed to open file: %+v", err)
+		}
+	}
+
+	return f, func() {
+		f.Close()
+		os.Chtimes(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename), mediaItem.Metadata.CreationTime, mediaItem.Metadata.CreationTime)
+	}, nil
+}
+
+// buildPath returns the path where the media should be written
+func buildPath(outputDir string, createdAt time.Time) string {
+	year := createdAt.Year()
+	month := createdAt.Month()
+	return fmt.Sprintf("%s/%d/%02d", outputDir, year, month)
 }
 
 // buildURL based on details from https://developers.google.com/photos/library/guides/access-media-items#base-urls
 func buildURL(mimeType, baseURL string) string {
 	if strings.Contains(mimeType, "video") {
-		fmt.Println(baseURL)
 		return fmt.Sprintf("%s=dv", baseURL)
 	}
 
