@@ -2,7 +2,6 @@ package client_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +22,7 @@ func TestClient_List(t *testing.T) {
 		getter := new(mocks.Getter)
 		getter.Test(t)
 		getter.On("Execute", mock.MatchedBy(func(r *http.Request) bool {
-			return r.URL.String() == "https://photoslibrary.googleapis.com/v1/mediaItems"
+			return r.URL.String() == "https://photoslibrary.googleapis.com/v1/mediaItems?pageSize=25"
 		})).Return(response.Result(), nil)
 
 		actual, err := client.New(getter.Execute).List("")
@@ -38,16 +37,12 @@ func TestClient_List(t *testing.T) {
 		response.Body = bytes.NewBuffer([]byte(`{}`))
 		getter := new(mocks.Getter)
 		getter.Test(t)
-		body := make(map[string]interface{})
 		getter.On("Execute", mock.MatchedBy(func(r *http.Request) bool {
-			json.NewDecoder(r.Body).Decode(&body)
-			return r.URL.String() == "https://photoslibrary.googleapis.com/v1/mediaItems"
+			return r.URL.String() == "https://photoslibrary.googleapis.com/v1/mediaItems?pageSize=25&pageToken=foopagetoken"
 		})).Return(response.Result(), nil)
 
 		client.New(getter.Execute).List("foopagetoken")
 		getter.AssertExpectations(t)
-		assert.Equal(t, "foopagetoken", body["pageToken"])
-		assert.Equal(t, "50", body["pageSize"])
 	})
 	t.Run("bad content from REST body", func(t *testing.T) {
 		response := httptest.NewRecorder()

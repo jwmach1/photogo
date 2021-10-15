@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"velocitizer.com/photogo/data"
@@ -16,20 +17,20 @@ type Client struct {
 	getter Getter
 }
 
-const pageSize = "50"
+const pageSize = "25"
 
 func New(getter Getter) *Client {
 	return &Client{getter: getter}
 }
 
 func (c Client) List(nextPageToken string) (*data.MediaResponse, error) {
-	body, _ := json.Marshal(map[string]interface{}{
-		"pageToken": nextPageToken,
-		"pageSize":  pageSize,
-	})
-	fmt.Println(string(body))
-	get, _ := http.NewRequest("GET", "https://photoslibrary.googleapis.com/v1/mediaItems", nil) //bytes.NewReader(body))
-	get.Header.Set("Content-type", "application/json")
+	values := url.Values{}
+	values.Set("pageSize", pageSize)
+	if nextPageToken != "" {
+		values.Set("pageToken", nextPageToken)
+	}
+	url := fmt.Sprintf("%s?%s", "https://photoslibrary.googleapis.com/v1/mediaItems", values.Encode())
+	get, _ := http.NewRequest("GET", url, nil)
 	response, err := c.getter(get)
 	if err != nil {
 		if response != nil && response.Body != nil {

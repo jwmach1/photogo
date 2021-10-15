@@ -19,7 +19,7 @@ func Extract(client MediaService, outputDir string) {
 	if err != nil {
 		log.Fatalf("failed to get mediaitems: %s", err)
 	}
-	fmt.Printf("%d items\n", len(medias.MediaItems))
+	fmt.Printf("%d items, has more %t\n", len(medias.MediaItems), len(medias.NextPageToken) > 0)
 
 	for _, media := range medias.MediaItems {
 		if err := saveMedia(client, outputDir, *media); err != nil {
@@ -77,7 +77,6 @@ func openFile(outputDir string, mediaItem data.MediaItem) (*os.File, func(), err
 	}
 
 	return f, func() {
-		fmt.Println("closer")
 		f.Close()
 		os.Chtimes(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename), mediaItem.Metadata.CreationTime, mediaItem.Metadata.CreationTime)
 	}, nil

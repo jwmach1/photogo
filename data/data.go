@@ -2,6 +2,10 @@ package data
 
 import "time"
 
+type ListRequest struct {
+	PageToken string `json:"pageToken,omitempty"`
+	PageSize  string `json:"pageSize,omitempty"`
+}
 type MediaResponse struct {
 	MediaItems    []*MediaItem `json:"mediaItems"`
 	NextPageToken string       `json:"nextPageToken"`
