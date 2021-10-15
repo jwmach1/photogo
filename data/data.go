@@ -1,4 +1,4 @@
-package photos
+package data
 
 import "time"
 

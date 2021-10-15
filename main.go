@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"velocitizer.com/photogo/client"
 	"velocitizer.com/photogo/photos"
 )
 
@@ -83,7 +84,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
-	client := getClient(config)
+	httpclient := getClient(config)
+	client := client.New(httpclient.Do)
 
 	photos.Extract(client, *outputDir)
 }
