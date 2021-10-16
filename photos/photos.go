@@ -2,7 +2,6 @@ package photos
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -14,18 +13,26 @@ type MediaService interface {
 	Get(mediaItem data.MediaItem) ([]byte, error)
 }
 
-func Extract(client MediaService, outputDir string) {
-	medias, err := client.List("")
-	if err != nil {
-		log.Fatalf("failed to get mediaitems: %s", err)
-	}
-	fmt.Printf("%d items, has more %t\n", len(medias.MediaItems), len(medias.NextPageToken) > 0)
+func Extract(client MediaService, outputDir string) error {
+	var nextPageToken string
+	for {
+		medias, err := client.List(nextPageToken)
+		if err != nil {
+			return fmt.Errorf("failed to get mediaitems: %s", err)
+		}
+		fmt.Printf("%d items, has more %t\n", len(medias.MediaItems), len(medias.NextPageToken) > 0)
 
-	for _, media := range medias.MediaItems {
-		if err := saveMedia(client, outputDir, *media); err != nil {
-			log.Fatal(err)
+		for _, media := range medias.MediaItems {
+			if err := saveMedia(client, outputDir, *media); err != nil {
+				return err
+			}
+		}
+		nextPageToken = medias.NextPageToken
+		if nextPageToken == "" {
+			break
 		}
 	}
+	return nil
 }
 
 func saveMedia(client MediaService, outputDir string, mediaItem data.MediaItem) error {
