@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -82,27 +83,33 @@ func openFile(outputDir string, mediaItem data.MediaItem) (*os.File, func(), err
 	if err != nil {
 		return nil, emptyCloser, fmt.Errorf("failed to create directory structure for media: %+v", err)
 	}
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename), os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
+	cleanName := nameCleaner(mediaItem.Filename)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s", filePath, cleanName), os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0666)
 	if err != nil {
 		if os.IsExist(err) {
-			info, err := os.Stat(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename))
+			info, err := os.Stat(fmt.Sprintf("%s/%s", filePath, cleanName))
 			if err != nil {
 				return nil, emptyCloser, fmt.Errorf("failed to determine if existing file was empty (%s): %+v", mediaItem.Filename, err)
 			}
 			if info.Size() > 0 {
-				//if file as contents, assume it's complete. future support could confirm mimetype == mediaItem
+				//if file has contents, assume it's complete. future support could confirm mimetype == mediaItem
 				return nil, emptyCloser, os.ErrExist
 			}
 			f, _ = os.OpenFile(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename), os.O_CREATE|os.O_WRONLY, 0666)
 		} else {
-			return nil, emptyCloser, fmt.Errorf("failed to open file: %+v", err)
+			return nil, emptyCloser, fmt.Errorf("failed to open file for media item %+v: %+v", mediaItem, err)
 		}
 	}
 
 	return f, func() {
 		f.Close()
-		os.Chtimes(fmt.Sprintf("%s/%s", filePath, mediaItem.Filename), mediaItem.Metadata.CreationTime, mediaItem.Metadata.CreationTime)
+		os.Chtimes(fmt.Sprintf("%s/%s", filePath, cleanName), mediaItem.Metadata.CreationTime, mediaItem.Metadata.CreationTime)
 	}, nil
+}
+func nameCleaner(input string) string {
+	output := strings.ReplaceAll(input, " ", "_")
+	output = strings.ReplaceAll(input, "/", "_")
+	return output
 }
 
 // buildPath returns the path where the media should be written
