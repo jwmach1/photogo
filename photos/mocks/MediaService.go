@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 	data "velocitizer.com/photogo/data"
 )
@@ -12,13 +14,13 @@ type MediaService struct {
 	mock.Mock
 }
 
-// Get provides a mock function with given fields: mediaItem
-func (_m *MediaService) Get(mediaItem data.MediaItem) ([]byte, error) {
-	ret := _m.Called(mediaItem)
+// Get provides a mock function with given fields: ctx, mediaItem
+func (_m *MediaService) Get(ctx context.Context, mediaItem data.MediaItem) ([]byte, error) {
+	ret := _m.Called(ctx, mediaItem)
 
 	var r0 []byte
-	if rf, ok := ret.Get(0).(func(data.MediaItem) []byte); ok {
-		r0 = rf(mediaItem)
+	if rf, ok := ret.Get(0).(func(context.Context, data.MediaItem) []byte); ok {
+		r0 = rf(ctx, mediaItem)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
@@ -26,8 +28,8 @@ func (_m *MediaService) Get(mediaItem data.MediaItem) ([]byte, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(data.MediaItem) error); ok {
-		r1 = rf(mediaItem)
+	if rf, ok := ret.Get(1).(func(context.Context, data.MediaItem) error); ok {
+		r1 = rf(ctx, mediaItem)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -35,13 +37,13 @@ func (_m *MediaService) Get(mediaItem data.MediaItem) ([]byte, error) {
 	return r0, r1
 }
 
-// List provides a mock function with given fields: nextPageToken
-func (_m *MediaService) List(nextPageToken string) (*data.MediaResponse, error) {
-	ret := _m.Called(nextPageToken)
+// List provides a mock function with given fields: ctx, nextPageToken
+func (_m *MediaService) List(ctx context.Context, nextPageToken string) (*data.MediaResponse, error) {
+	ret := _m.Called(ctx, nextPageToken)
 
 	var r0 *data.MediaResponse
-	if rf, ok := ret.Get(0).(func(string) *data.MediaResponse); ok {
-		r0 = rf(nextPageToken)
+	if rf, ok := ret.Get(0).(func(context.Context, string) *data.MediaResponse); ok {
+		r0 = rf(ctx, nextPageToken)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*data.MediaResponse)
@@ -49,8 +51,8 @@ func (_m *MediaService) List(nextPageToken string) (*data.MediaResponse, error) 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(nextPageToken)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, nextPageToken)
 	} else {
 		r1 = ret.Error(1)
 	}

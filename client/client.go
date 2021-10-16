@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -23,14 +24,14 @@ func New(getter Getter) *Client {
 	return &Client{getter: getter}
 }
 
-func (c Client) List(nextPageToken string) (*data.MediaResponse, error) {
+func (c Client) List(ctx context.Context, nextPageToken string) (*data.MediaResponse, error) {
 	values := url.Values{}
 	values.Set("pageSize", pageSize)
 	if nextPageToken != "" {
 		values.Set("pageToken", nextPageToken)
 	}
 	url := fmt.Sprintf("%s?%s", "https://photoslibrary.googleapis.com/v1/mediaItems", values.Encode())
-	get, _ := http.NewRequest("GET", url, nil)
+	get, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	response, err := c.getter(get)
 	if err != nil {
 		if response != nil && response.Body != nil {
@@ -56,8 +57,8 @@ func (c Client) List(nextPageToken string) (*data.MediaResponse, error) {
 	return &medias, nil
 }
 
-func (c Client) Get(mediaItem data.MediaItem) ([]byte, error) {
-	get, _ := http.NewRequest("GET", buildURL(mediaItem.MimeType, mediaItem.BaseUrl), nil)
+func (c Client) Get(ctx context.Context, mediaItem data.MediaItem) ([]byte, error) {
+	get, _ := http.NewRequestWithContext(ctx, "GET", buildURL(mediaItem.MimeType, mediaItem.BaseUrl), nil)
 	imgResponse, err := c.getter(get)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get (%s): %v", mediaItem.ID, err)

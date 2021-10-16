@@ -1,31 +1,47 @@
 package photos
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"velocitizer.com/photogo/data"
 )
 
 type MediaService interface {
-	List(nextPageToken string) (*data.MediaResponse, error)
-	Get(mediaItem data.MediaItem) ([]byte, error)
+	List(ctx context.Context, nextPageToken string) (*data.MediaResponse, error)
+	Get(ctx context.Context, mediaItem data.MediaItem) ([]byte, error)
 }
 
-func Extract(client MediaService, outputDir string) error {
+func Extract(ctx context.Context, client MediaService, outputDir string, workerCount int) error {
+
 	var nextPageToken string
 	for {
-		medias, err := client.List(nextPageToken)
+		medias, err := client.List(ctx, nextPageToken)
 		if err != nil {
 			return fmt.Errorf("failed to get mediaitems: %s", err)
 		}
 		fmt.Printf("%d items, has more %t\n", len(medias.MediaItems), len(medias.NextPageToken) > 0)
-
+		eg, ctx := errgroup.WithContext(ctx)
+		semChan := make(chan struct{}, workerCount)
 		for _, media := range medias.MediaItems {
-			if err := saveMedia(client, outputDir, *media); err != nil {
-				return err
-			}
+			semChan <- struct{}{}
+			media := *media
+			eg.Go(func() error {
+				defer func() {
+					<-semChan
+				}()
+				return saveMedia(ctx, client, outputDir, media)
+			})
+		}
+		for i := 0; i < workerCount; i++ {
+			semChan <- struct{}{}
+		}
+		err = eg.Wait()
+		if err != nil {
+			return err
 		}
 		nextPageToken = medias.NextPageToken
 		if nextPageToken == "" {
@@ -35,7 +51,7 @@ func Extract(client MediaService, outputDir string) error {
 	return nil
 }
 
-func saveMedia(client MediaService, outputDir string, mediaItem data.MediaItem) error {
+func saveMedia(ctx context.Context, client MediaService, outputDir string, mediaItem data.MediaItem) error {
 	f, closer, err := openFile(outputDir, mediaItem)
 	if err != nil {
 		if os.IsExist(err) {
@@ -46,7 +62,7 @@ func saveMedia(client MediaService, outputDir string, mediaItem data.MediaItem) 
 	}
 	defer closer()
 
-	imgBytes, err := client.Get(mediaItem)
+	imgBytes, err := client.Get(ctx, mediaItem)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %v", mediaItem.Filename, err)
 	}

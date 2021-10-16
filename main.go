@@ -9,12 +9,39 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"velocitizer.com/photogo/client"
 	"velocitizer.com/photogo/photos"
 )
+
+func main() {
+	workerCount := flag.Int("worker-count", 5, "number of fetch workers")
+	outputDir := flag.String("output", "data", "directory to write output")
+	flag.Parse()
+	b, err := ioutil.ReadFile("credentials.json")
+	if err != nil {
+		log.Fatalf("Unable to read client secret file: %v", err)
+	}
+
+	// If modifying these scopes, delete your previously saved token.json.
+	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/photoslibrary.readonly")
+	if err != nil {
+		log.Fatalf("Unable to parse client secret file to config: %v", err)
+	}
+	httpclient := getClient(config)
+	client := client.New(httpclient.Do)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	err = photos.Extract(ctx, client, *outputDir, *workerCount)
+	if err != nil {
+		log.Panic(err)
+	}
+}
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
@@ -69,23 +96,4 @@ func saveToken(path string, token *oauth2.Token) {
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
-}
-
-func main() {
-	outputDir := flag.String("output", "data", "directory to write output")
-	flag.Parse()
-	b, err := ioutil.ReadFile("credentials.json")
-	if err != nil {
-		log.Fatalf("Unable to read client secret file: %v", err)
-	}
-
-	// If modifying these scopes, delete your previously saved token.json.
-	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/photoslibrary.readonly")
-	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
-	}
-	httpclient := getClient(config)
-	client := client.New(httpclient.Do)
-
-	photos.Extract(client, *outputDir)
 }
