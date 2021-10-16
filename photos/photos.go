@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"velocitizer.com/photogo/data"
 )
 
@@ -17,13 +19,14 @@ type MediaService interface {
 }
 
 func Extract(ctx context.Context, client MediaService, outputDir string, workerCount int) error {
-
+	var total int64
 	var nextPageToken string
 	for {
 		medias, err := client.List(ctx, nextPageToken)
 		if err != nil {
 			return fmt.Errorf("failed to get mediaitems: %s", err)
 		}
+		total += int64(len(medias.MediaItems))
 		fmt.Printf("%d items, has more %t\n", len(medias.MediaItems), len(medias.NextPageToken) > 0)
 		eg, ctx := errgroup.WithContext(ctx)
 		semChan := make(chan struct{}, workerCount)
@@ -49,6 +52,8 @@ func Extract(ctx context.Context, client MediaService, outputDir string, workerC
 			break
 		}
 	}
+	p := message.NewPrinter(language.English)
+	p.Printf("%d media processed\n", total)
 	return nil
 }
 

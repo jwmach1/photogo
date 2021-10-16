@@ -36,3 +36,9 @@ There are two optional arguments:
 Pass your own output directory based on your NAS mounted path
 > go run main.go -output "/Volumes/home/Photos/..."
  
+
+ ## Verification
+ Did it work!? Can you delete your Google Photos with the confidence that every memory is in your private cloud?
+ ```sh
+  find /Volumes/home/Photos -size 0
+  ```
