@@ -42,3 +42,19 @@ Pass your own output directory based on your NAS mounted path
  ```sh
   find /Volumes/home/Photos -size 0
   ```
+
+Did the final count printed at the end match _about_ that shown in [your google dashboard](https://myaccount.google.com/dashboard)?
+
+Open your new photo library (Synology Photos?) and look for pictures at the top/newest that shouldn't be there.  They did not get the file creation time modification correctly.  My solution was to just delete them, and run the whole thing again. It only takes a few minutes to process 4k media files.
+
+Finally, have the operating system help you verify the media came over correctly by looking at the `file` output for each:
+```sh
+find /Volumes/home/Photos/MobileBackup/Pixel\ Tré/DCIM/Camera -type f > files
+file -f files >file_type_output
+```
+
+I then used vim and removed all the known types -- jpeg, and movies -- from the `file_type_output`.  The only one that didn't below was a random MacOS `.DSStore` file where I must have opened finder and previewed the images.
+
+## Warning
+
+Ultimately it is up to you if you have the confidence in your new backup complete.  Can you delete your photos and videos from Google Photos with the knowledge that your media is safe? Only you can decide.  However, this backup does not include Albums. This did not recreate your shared Albums.
