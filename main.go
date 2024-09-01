@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -20,8 +19,9 @@ import (
 func main() {
 	workerCount := flag.Int("worker-count", 5, "number of fetch workers")
 	outputDir := flag.String("output", "data", "directory to write output")
+	readonly := flag.Bool("read-only", false, "list the files that would be created")
 	flag.Parse()
-	b, err := ioutil.ReadFile("credentials.json")
+	b, err := os.ReadFile("credentials.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
@@ -37,7 +37,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	err = photos.Extract(ctx, client, *outputDir, *workerCount)
+	err = photos.Extract(ctx, client, *outputDir, *workerCount, *readonly)
 	if err != nil {
 		log.Panic(err)
 	}

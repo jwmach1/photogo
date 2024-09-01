@@ -23,7 +23,7 @@ func Test_Extract(t *testing.T) {
 
 		service.On("List", ctx, "").Return(&data.MediaResponse{}, nil)
 
-		err := photos.Extract(ctx, service, "testdata", 1)
+		err := photos.Extract(ctx, service, "testdata", 1, false)
 
 		assert.NoError(t, err)
 	})
@@ -33,7 +33,7 @@ func Test_Extract(t *testing.T) {
 
 		service.On("List", context.Background(), "").Return(nil, errors.New("list fails"))
 
-		err := photos.Extract(context.Background(), service, "testdata", 4)
+		err := photos.Extract(context.Background(), service, "testdata", 4, false)
 		assert.Error(t, err)
 	})
 
@@ -61,10 +61,49 @@ func Test_Extract(t *testing.T) {
 			},
 		}, nil)
 
-		err = photos.Extract(context.Background(), service, "testdata", 2)
+		err = photos.Extract(context.Background(), service, "testdata", 2, false)
+		assert.NoError(t, err)
+	})
+	t.Run("cancelled context returns nil", func(t *testing.T) {
+		defer func() {
+			require.NoError(t, os.RemoveAll("testdata/2021"))
+		}()
+
+		service := new(mocks.MediaService)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		service.On("List", ctx, "").Return(&data.MediaResponse{}, context.Canceled)
+		cancel()
+		err := photos.Extract(ctx, service, "testdata", 2, false)
 		assert.NoError(t, err)
 	})
 
+	t.Run("read only does not save", func(t *testing.T) {
+		mediaTime, err := time.Parse(time.RFC3339, "2021-09-13T15:04:05Z")
+		require.NoError(t, err)
+
+		service := new(mocks.MediaService)
+
+		item := &data.MediaItem{
+			ID:       "doesn't matter",
+			Filename: "foomedia.jpg",
+			BaseUrl:  "http://localhost/bar",
+			MimeType: "image/jpeg",
+			Metadata: data.MediaMetadata{
+				CreationTime: mediaTime,
+			},
+		}
+		service.On("List", context.Background(), "").Return(&data.MediaResponse{
+			MediaItems: []*data.MediaItem{
+				item,
+			},
+		}, nil)
+		service.On("Get", mock.Anything, *item).Return([]byte("foo"), nil)
+
+		err = photos.Extract(context.Background(), service, "testdata", 2, true)
+		assert.NoError(t, err)
+		service.AssertNotCalled(t, "Get")
+	})
 	t.Run("media is passed to save", func(t *testing.T) {
 		defer func() {
 			require.NoError(t, os.RemoveAll("testdata/2021"))
@@ -90,8 +129,9 @@ func Test_Extract(t *testing.T) {
 		}, nil)
 		service.On("Get", mock.Anything, *item).Return([]byte("foo"), nil)
 
-		err = photos.Extract(context.Background(), service, "testdata", 2)
+		err = photos.Extract(context.Background(), service, "testdata", 2, false)
 		assert.NoError(t, err)
+		assert.FileExists(t, "./testdata/2021/09/foomedia.jpg")
 	})
 
 	t.Run("media with weird filename passed to save", func(t *testing.T) {
@@ -119,7 +159,7 @@ func Test_Extract(t *testing.T) {
 		}, nil)
 		service.On("Get", mock.Anything, *item).Return([]byte("foo"), nil)
 
-		err = photos.Extract(context.Background(), service, "testdata", 2)
+		err = photos.Extract(context.Background(), service, "testdata", 2, false)
 		assert.NoError(t, err)
 	})
 
@@ -153,7 +193,7 @@ func Test_Extract(t *testing.T) {
 		}, nil).Once()
 		service.On("Get", mock.Anything, *item).Return([]byte("foo"), nil)
 
-		err = photos.Extract(context.Background(), service, "testdata", 3)
+		err = photos.Extract(context.Background(), service, "testdata", 3, false)
 		assert.NoError(t, err)
 		service.AssertExpectations(t)
 	})

@@ -2,6 +2,7 @@ package photos
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -18,30 +19,30 @@ type MediaService interface {
 	Get(ctx context.Context, mediaItem data.MediaItem) ([]byte, error)
 }
 
-func Extract(ctx context.Context, client MediaService, outputDir string, workerCount int) error {
+func Extract(ctx context.Context, client MediaService, outputDir string, workerCount int, readOnly bool) error {
 	var total int64
 	var nextPageToken string
 	for {
 		medias, err := client.List(ctx, nextPageToken)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil
+			}
 			return fmt.Errorf("failed to get mediaitems: %s", err)
 		}
 		total += int64(len(medias.MediaItems))
 		fmt.Printf("%d items, has more %t\n", len(medias.MediaItems), len(medias.NextPageToken) > 0)
 		eg, ctx := errgroup.WithContext(ctx)
-		semChan := make(chan struct{}, workerCount)
+		eg.SetLimit(workerCount)
 		for _, media := range medias.MediaItems {
-			semChan <- struct{}{}
 			media := *media
 			eg.Go(func() error {
-				defer func() {
-					<-semChan
-				}()
+				if readOnly {
+					fmt.Printf("%s/%s\n", buildPath(outputDir, media.Metadata.CreationTime), nameCleaner(media.Filename))
+					return nil
+				}
 				return saveMedia(ctx, client, outputDir, media)
 			})
-		}
-		for i := 0; i < workerCount; i++ {
-			semChan <- struct{}{}
 		}
 		err = eg.Wait()
 		if err != nil {

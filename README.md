@@ -21,12 +21,20 @@ We can spend a weekend writing a little program to use the REST Api to meet the 
 I took the initial step to setup the NAS photo library application on my phone, and turned on backup.  That gives me directory structure to model. But my phone does not have all my photo's going back decades.
 
 ## Setup
-We use the Google Photos Library.
+We use the Google Photos Library. I have not setup and published a project. You'll need to create or use your own project. This includes the step to enable the Photos API.
 
-* start with https://developers.google.com/photos/library/guides/get-started
-  * BUT, when you create the OAUTH certificate, use desktop instead of web
-* download the oauth certificate json, and save it to `credentials.json` in the root folder here (note that the filename is expected and included in the `.gitignore`).
+### A Google project with Photos API enabled
+* start with https://developers.google.com/photos/library/guides/get-started. BUT, when you create the OAUTH certificate, use desktop instead of web
+  * create or select a google project
+  * enable `Photos Library API` at https://console.cloud.google.com/apis/library/photoslibrary.googleapis.com
+  * setup minimal OAUTH consent screen, just the required fields
+    * I left mine in "test" mode, and added myself as a tester
+  * create AUTH credentials for `desktop` https://console.cloud.google.com/apis/credentials/oauthclient
+    * download the oauth certificate json, and save it to `credentials.json` in the root folder here (note that the filename is expected and included in the `.gitignore`).
+
+### Mount your NAS directory
 * Mount your NAS directory. for me this was in `/Volumes/home`. Use whatever you want.
+  * On Mac, this can be as easy as the "Go->Connect to server" menu in `Finder`
 
 ## Running
 There are two optional arguments:

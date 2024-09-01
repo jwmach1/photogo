@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,7 +36,7 @@ func (c Client) List(ctx context.Context, nextPageToken string) (*data.MediaResp
 	if err != nil {
 		if response != nil && response.Body != nil {
 			defer response.Body.Close()
-			b, _ := ioutil.ReadAll(response.Body)
+			b, _ := io.ReadAll(response.Body)
 			fmt.Println("body from error:", string(b))
 		}
 		return nil, err
@@ -44,7 +44,7 @@ func (c Client) List(ctx context.Context, nextPageToken string) (*data.MediaResp
 	if response.StatusCode != http.StatusOK {
 		if response.Body != nil {
 			defer response.Body.Close()
-			b, _ := ioutil.ReadAll(response.Body)
+			b, _ := io.ReadAll(response.Body)
 			fmt.Println("body from error:", string(b))
 		}
 		return nil, fmt.Errorf("list call returned: %d:%s", response.StatusCode, http.StatusText(response.StatusCode))
@@ -66,14 +66,14 @@ func (c Client) Get(ctx context.Context, mediaItem data.MediaItem) ([]byte, erro
 	if imgResponse.StatusCode != http.StatusOK {
 		if imgResponse.Body != nil {
 			defer imgResponse.Body.Close()
-			b, _ := ioutil.ReadAll(imgResponse.Body)
+			b, _ := io.ReadAll(imgResponse.Body)
 			fmt.Println("body from error:", string(b))
 		}
 		return nil, fmt.Errorf("list call returned: %d:%s", imgResponse.StatusCode, http.StatusText(imgResponse.StatusCode))
 	}
 	defer imgResponse.Body.Close()
 
-	return ioutil.ReadAll(imgResponse.Body)
+	return io.ReadAll(imgResponse.Body)
 }
 
 // buildURL based on details from https://developers.google.com/photos/library/guides/access-media-items#base-urls
